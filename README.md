@@ -1,5 +1,7 @@
 # GitHub Stars Organizer Playbook
 
+[繁體中文](README.md) | [English](README.en.md)
+
 一套可交給 AI agent 重複執行的 GitHub Stars Lists 整理流程。目標不是只把 repository 塞進分類，而是做到：
 
 - 不覆蓋使用者原本的多重清單關係。
