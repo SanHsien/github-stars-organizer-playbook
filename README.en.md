@@ -210,7 +210,7 @@ repository_id -> existing_list_ids[]
 
 ### 4. Design the Category Structure
 
-The user should confirm the category structure first. These general-purpose categories were used in a real run covering 513 repositories:
+The user should confirm the category structure first. These general-purpose categories were used for SanHsien's starred repositories:
 
 | List | Typical signals |
 |---|---|
@@ -233,12 +233,13 @@ The user should confirm the category structure first. These general-purpose cate
 | DevOps & Self-hosting | Docker, Kubernetes, server, hosting, CI/CD, monitoring |
 | Games & Fun | game, anime, manga, comic, entertainment |
 | Hardware & IoT | ESP32, Arduino, Raspberry Pi, firmware, sensor |
+| Finance, Quant & Trading | quant, trading, backtesting, equities, prediction markets, hedge fund |
 
 #### Classification Priority
 
 Keywords can match several categories, so classification needs a fixed priority order. A useful order is:
 
-1. High-confidence domains: stickers, LINE bots, fonts, Taiwan, and hardware.
+1. High-confidence domains: stickers, LINE bots, fonts, Taiwan, hardware, and finance/quant/trading.
 2. Media capabilities: voice, video, Whisper, and TTS.
 3. Security, translation, Windows, and mobile platforms.
 4. ML research and AI agents.
@@ -250,6 +251,7 @@ Do not place every repository that mentions AI into the AI List. For example:
 - An AI video-analysis tool may belong in `Voice, Video & Media`.
 - An AI image-generation tool may belong in `Stickers & Creative Tools`.
 - A research implementation of a model may belong in `ML Models & Research`.
+- An AI trading or quant-investing tool may belong in `Finance, Quant & Trading`.
 
 ### 5. Create Manual Overrides
 
@@ -449,7 +451,26 @@ Finally:
 
 ## Case Study: SanHsien
 
-Actual result from 2026-07-28:
+The full dry-run evidence is in [`runs/2026-08-15/`](runs/2026-08-15/README.md).
+
+### 2026-08-15 unclassified audit (dry-run, not written)
+
+| Item | Result |
+|---|---:|
+| Stars UI | 537 |
+| Starred repositories | 535 |
+| Starred topics difference | 2 |
+| Lists | 19 (propose adding Finance, Quant & Trading) |
+| Unique repositories in Lists | 512 |
+| Missing / unclassified repositories | 23 |
+| Memberships | 525 |
+| Proposed updates | 23 |
+| Proposed new memberships | 25 |
+| Remote writes | Not applied (CLI is not SanHsien; write authorization pending) |
+
+If applied: unique listed 535, memberships 550, Finance List 10. Two items need confirmation: `cloudflare/computer` and `microsoft/qlib`.
+
+### Actual result from 2026-07-28
 
 | Item | Result |
 |---|---:|

@@ -210,7 +210,7 @@ repository_id -> existing_list_ids[]
 
 ### 4. 設計分類架構
 
-分類架構應先經使用者確認。以下是實際處理 513 個 repositories 時使用的通用類別：
+分類架構應先經使用者確認。以下是實際處理 SanHsien starred repositories 時使用的通用類別：
 
 | List | 典型線索 |
 |---|---|
@@ -233,12 +233,13 @@ repository_id -> existing_list_ids[]
 | DevOps & Self-hosting | Docker、Kubernetes、server、hosting、CI/CD、monitoring |
 | Games & Fun | game、anime、manga、comic、entertainment |
 | Hardware & IoT | ESP32、Arduino、Raspberry Pi、firmware、sensor |
+| Finance, Quant & Trading | quant、trading、backtest、股票、預測市場、hedge fund |
 
 #### 分類優先序
 
 關鍵字可能同時命中多個類別，因此需要固定優先序。可依下列方向安排：
 
-1. 高辨識度領域：sticker、LINE bot、font、Taiwan、hardware。
+1. 高辨識度領域：sticker、LINE bot、font、Taiwan、hardware、finance／quant／trading。
 2. 媒體能力：voice、video、Whisper、TTS。
 3. 安全、翻譯、Windows、行動平台。
 4. ML research 與 AI agents。
@@ -250,6 +251,7 @@ repository_id -> existing_list_ids[]
 - AI 影片分析工具可優先放 `Voice, Video & Media`。
 - AI 圖像生成可優先放 `Stickers & Creative Tools`。
 - 模型論文實作可優先放 `ML Models & Research`。
+- AI 交易／量化投資工具可優先放 `Finance, Quant & Trading`。
 
 ### 5. 建立 manual overrides
 
@@ -449,7 +451,26 @@ gh auth status -h github.com
 
 ## 實際案例：SanHsien
 
-2026-07-28 實際執行結果：
+完整 dry-run 證據見 [`runs/2026-08-15/`](runs/2026-08-15/README.md)。
+
+### 2026-08-15 未分類覆核（dry-run，尚未寫入）
+
+| 項目 | 結果 |
+|---|---:|
+| Stars UI | 537 |
+| Starred repositories | 535 |
+| Starred topics 差額 | 2 |
+| Lists | 19（建議新增 Finance, Quant & Trading） |
+| Unique repositories in Lists | 512 |
+| Missing / 未分類 repositories | 23 |
+| Memberships | 525 |
+| 建議更新數 | 23 |
+| 建議新 memberships | 25 |
+| 遠端寫入 | 未執行（CLI 非 SanHsien，且尚未取得寫入授權） |
+
+建議套用後：unique listed 535、memberships 550、Finance List 10 筆。2 筆需人工確認：`cloudflare/computer`、`microsoft/qlib`。
+
+### 2026-07-28 實際執行結果
 
 | 項目 | 結果 |
 |---|---:|
