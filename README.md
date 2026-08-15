@@ -451,24 +451,49 @@ gh auth status -h github.com
 
 ## 實際案例：SanHsien
 
-完整 dry-run 證據見 [`runs/2026-08-15/`](runs/2026-08-15/README.md)。
+完整執行證據見 [`runs/2026-08-15/`](runs/2026-08-15/README.md)。
 
-### 2026-08-15 未分類覆核（dry-run，尚未寫入）
+### 2026-08-15 未分類覆核（已寫入並驗證）
 
 | 項目 | 結果 |
 |---|---:|
 | Stars UI | 537 |
 | Starred repositories | 535 |
 | Starred topics 差額 | 2 |
-| Lists | 19（建議新增 Finance, Quant & Trading） |
-| Unique repositories in Lists | 512 |
-| Missing / 未分類 repositories | 23 |
-| Memberships | 525 |
-| 建議更新數 | 23 |
-| 建議新 memberships | 25 |
-| 遠端寫入 | 未執行（CLI 非 SanHsien，且尚未取得寫入授權） |
+| Lists | 20 |
+| Unique repositories in Lists | 535 |
+| Missing / 未分類 repositories | 0 |
+| Memberships | 550 |
+| 額外 memberships | 15 |
+| 更新數 | 23 |
+| 新建 List | Finance, Quant & Trading（10） |
 
-建議套用後：unique listed 535、memberships 550、Finance List 10 筆。2 筆需人工確認：`cloudflare/computer`、`microsoft/qlib`。
+寫入後重新分頁驗證：unique List IDs 等於 starred IDs；原有 memberships 全部保留。`cloudflare/computer` 與 `microsoft/qlib` 依確認分別歸入 AI Agents & Coding、Finance, Quant & Trading。
+
+寫入後各 List 數量：
+
+| List | Count |
+|---|---:|
+| AI Agents & Coding | 127 |
+| ML Models & Research | 65 |
+| Voice, Video & Media | 65 |
+| Stickers & Creative Tools | 49 |
+| LINE & Chatbots | 43 |
+| Taiwan & Traditional Chinese | 28 |
+| Windows & Local-first | 26 |
+| Automation & Productivity | 24 |
+| Security & Privacy | 22 |
+| Fonts & Typography | 16 |
+| Translation & Language | 14 |
+| Data, Docs & Knowledge | 12 |
+| Utilities & System Tools | 11 |
+| Web & App Development | 11 |
+| Finance, Quant & Trading | 10 |
+| Learning & Awesome Lists | 8 |
+| Mobile & Cross-platform | 6 |
+| DevOps & Self-hosting | 5 |
+| Games & Fun | 5 |
+| Hardware & IoT | 3 |
 
 ### 2026-07-28 實際執行結果
 

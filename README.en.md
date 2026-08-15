@@ -451,24 +451,49 @@ Finally:
 
 ## Case Study: SanHsien
 
-The full dry-run evidence is in [`runs/2026-08-15/`](runs/2026-08-15/README.md).
+The full run evidence is in [`runs/2026-08-15/`](runs/2026-08-15/README.md).
 
-### 2026-08-15 unclassified audit (dry-run, not written)
+### 2026-08-15 unclassified audit (written and verified)
 
 | Item | Result |
 |---|---:|
 | Stars UI | 537 |
 | Starred repositories | 535 |
 | Starred topics difference | 2 |
-| Lists | 19 (propose adding Finance, Quant & Trading) |
-| Unique repositories in Lists | 512 |
-| Missing / unclassified repositories | 23 |
-| Memberships | 525 |
-| Proposed updates | 23 |
-| Proposed new memberships | 25 |
-| Remote writes | Not applied (CLI is not SanHsien; write authorization pending) |
+| Lists | 20 |
+| Unique repositories in Lists | 535 |
+| Missing / unclassified repositories | 0 |
+| Memberships | 550 |
+| Additional memberships | 15 |
+| Updates | 23 |
+| New List | Finance, Quant & Trading (10) |
 
-If applied: unique listed 535, memberships 550, Finance List 10. Two items need confirmation: `cloudflare/computer` and `microsoft/qlib`.
+After a full paginated re-fetch, unique List IDs matched starred IDs and every original membership still existed. `cloudflare/computer` and `microsoft/qlib` were placed in AI Agents & Coding and Finance, Quant & Trading as confirmed.
+
+List counts after the write:
+
+| List | Count |
+|---|---:|
+| AI Agents & Coding | 127 |
+| ML Models & Research | 65 |
+| Voice, Video & Media | 65 |
+| Stickers & Creative Tools | 49 |
+| LINE & Chatbots | 43 |
+| Taiwan & Traditional Chinese | 28 |
+| Windows & Local-first | 26 |
+| Automation & Productivity | 24 |
+| Security & Privacy | 22 |
+| Fonts & Typography | 16 |
+| Translation & Language | 14 |
+| Data, Docs & Knowledge | 12 |
+| Utilities & System Tools | 11 |
+| Web & App Development | 11 |
+| Finance, Quant & Trading | 10 |
+| Learning & Awesome Lists | 8 |
+| Mobile & Cross-platform | 6 |
+| DevOps & Self-hosting | 5 |
+| Games & Fun | 5 |
+| Hardware & IoT | 3 |
 
 ### Actual result from 2026-07-28
 

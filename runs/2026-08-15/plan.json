@@ -9,19 +9,16 @@
   "unclassified_count": 23,
   "memberships_before": 525,
   "multi_memberships_before": 12,
-  "write_status": "dry-run-only",
-  "write_blocked_reason": [
-    "Cloud agent GitHub CLI active account is cursor, not SanHsien.",
-    "AGENTS.md requires explicit authorization before createUserList or updateUserListsForItem.",
-    "Lists mutations may need a temporary user OAuth scope completed by the account owner."
-  ],
+  "write_status": "applied-and-verified",
+  "write_blocked_reason": [],
   "proposed_new_lists": [
     {
       "name": "Finance, Quant & Trading",
       "description": "Quantitative finance, algorithmic trading, prediction markets, and investment research.",
       "isPrivate": false,
-      "status": "proposed",
-      "id": null
+      "status": "created",
+      "id": "UL_kwDOAgphSs4AhlP_",
+      "slug": "finance-quant-trading"
     }
   ],
   "updates_required": 23,
