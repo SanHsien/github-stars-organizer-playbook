@@ -2,113 +2,81 @@
 
 [繁體中文](README.md) | [English](README.en.md)
 
-一套可交給 AI agent 重複執行的 GitHub Stars Lists 整理流程。目標不是只把 repository 塞進分類，而是做到：
+一套可交給 AI agent 執行的 GitHub Stars Lists 整理 runbook。它不是一鍵分類器，也不是 GitHub App；重點是把大量 starred repositories 安全整理到 Lists，同時保留既有多重分類、留下 dry-run 與驗證證據，並避免 OAuth 與批次 mutation 造成不可逆損失。
 
-- 不覆蓋使用者原本的多重清單關係。
-- 先 dry-run，再分批寫入。
-- 對超過 100 筆的清單正確分頁。
-- 將可自動判斷與必須人工覆核的項目分開。
-- 完成後驗證零遺漏，並移除臨時 OAuth 權限。
-- 留下可供下一個 AI 重新驗證的證據。
+> GitHub 的 User Lists 型別與 `updateUserListsForItem` mutation 目前仍列在公開 GraphQL schema。每次執行前仍應以最新官方文件或 live introspection 確認欄位、scope 與 UI 行為。
 
-> GitHub Lists 目前仍是 public preview；執行前應重新確認 GraphQL schema 與官方文件是否改變。
+## 適合什麼情況
 
-## 適用範圍
+適合：
 
-本流程適用於：
+- Stars 數量很多，想用 GitHub Lists 重新整理。
+- 已有 Lists，而且必須保留 repository 原本的重複 memberships。
+- 想先讓 AI 初分，再人工覆核模糊項目。
+- 希望每次更新都能 dry-run、分批寫入並完整重驗。
 
-- 將大量 starred repositories 整理到 GitHub 公開 Lists。
-- 已經有部分 Lists，且必須保留既有重複分類。
-- Stars 頁面總數包含 starred topics，導致 UI 數量與 repository API 數量不同。
-- 希望由 AI 做初步分類，再人工覆核模糊項目。
+不適合：
 
-GitHub Lists 只能收納 repositories。若 Stars 頁面顯示的總數高於 `viewer.starredRepositories.totalCount`，差額通常是 starred topics，不是遺漏。
+- 想把 starred topics 當成 repository 放進 Lists。
+- 想完全無人監督地處理 OAuth、裝置碼或登入確認。
+- 想在沒有 inventory / dry-run 的情況下直接大量 mutation。
 
-## 安全規則
+## 核心安全規則
 
-AI agent 執行前必須遵守以下邊界：
-
-1. 先取得目前 Lists 與所有 memberships，不可直接以單一目標 List 覆寫。
-2. `updateUserListsForItem` 的 `listIds` 表示更新後的完整清單集合，不是單純追加。
-3. 寫入值必須是：
+1. **先讀再寫。** 先完整取得 starred repositories、Lists 與每張 List 的 memberships。
+2. **所有 connection 都要分頁。** `first: 100` 不是完整資料保證。
+3. **`listIds` 是完整結果，不是 append。** 每次 mutation 都必須送出：
 
    ```text
    existing_list_ids ∪ desired_list_ids
    ```
 
-4. 在 mutation 前輸出 dry-run：repository 數量、待更新數、未分類清單與各分類預估數。
-5. 不得自動處理 GitHub 登入、裝置驗證碼或 OAuth 確認頁；這一步交由使用者本人。
-6. mutation 失敗或回傳 GraphQL `errors` 時停止，重新讀取遠端狀態後再續跑。
-7. 寫入後必須重新抓取全部資料驗證，不可用「API 沒報錯」當作完成證據。
-8. 任務完成後移除臨時增加的 OAuth scope，並刪除含有分類結果的暫存檔。
+4. **先 dry-run。** 正式寫入前輸出總數、待更新數、未分類項目、各分類預估數與多重 memberships。
+5. **OAuth 由使用者本人完成。** AI 不代填裝置碼、不自動確認 GitHub 授權頁。
+6. **失敗就重新讀遠端狀態。** 不從過期的 mutation plan 硬續跑。
+7. **API 沒報錯不等於完成。** 寫入後重新分頁抓取全部資料，以集合比較驗證。
+
+完整執行時可搭配 [`CHECKLIST.md`](CHECKLIST.md)。
 
 ## 先決條件
 
 - 已安裝 [GitHub CLI](https://cli.github.com/)。
-- `gh auth status -h github.com` 顯示正確的 active account。
-- 有權修改該帳號的 Stars Lists。
+- `gh auth status -h github.com` 顯示正確 active account。
+- 使用者有權修改自己的 Stars Lists。
 - PowerShell 7 或 Windows PowerShell。
 
-先確認登入帳號與 scope：
+先確認帳號與 scopes：
 
 ```powershell
 gh auth status -h github.com
 ```
 
-Lists mutation 若回報 scope 不足，可暫時加入 `user` scope：
+若 Lists mutation 回報 scope 不足，可暫時要求 `user` scope：
 
 ```powershell
 gh auth refresh -h github.com --scopes user --clipboard
 ```
 
-這會啟動 GitHub 裝置授權流程，必須由使用者本人完成。
+裝置授權流程必須由使用者本人完成。任務結束後再移除臨時 scope。
 
-## 完整流程
+## 執行流程
 
-### 1. 建立執行紀錄
+### 1. 建立 read-only inventory
 
-執行前記錄：
+先記錄：
 
-- GitHub 帳號。
+- GitHub active account。
 - Stars UI 顯示總數。
-- `starredRepositories` repository 數。
-- 已存在的 Lists 名稱與數量。
-- 原始 token scopes。
+- `viewer.starredRepositories.totalCount`。
+- 既有 Lists 名稱與數量。
+- 原始 OAuth scopes。
 - 執行日期。
 
-不要在紀錄中保存 token、API key 或裝置驗證碼。
+不要保存 token、API key 或裝置驗證碼。
 
-### 2. 取得所有 starred repositories
-
-使用支援 global node ID 的 GraphQL 查詢：
+取得 starred repositories 時至少讀取：
 
 ```graphql
-query($endCursor: String) {
-  viewer {
-    starredRepositories(first: 100, after: $endCursor) {
-      totalCount
-      nodes {
-        id
-        nameWithOwner
-        description
-        primaryLanguage { name }
-        repositoryTopics(first: 30) {
-          nodes { topic { name } }
-        }
-      }
-      pageInfo {
-        hasNextPage
-        endCursor
-      }
-    }
-  }
-}
-```
-
-GitHub CLI 範例：
-
-```powershell
-$query = @'
 query($endCursor: String) {
   viewer {
     starredRepositories(first: 100, after: $endCursor) {
@@ -126,44 +94,25 @@ query($endCursor: String) {
     }
   }
 }
-'@
-
-gh api graphql `
-  --paginate `
-  --slurp `
-  -H "X-Github-Next-Global-ID: 1" `
-  -f "query=$query"
 ```
 
-分類時至少使用：
+分類至少使用 `nameWithOwner`、description、primary language 與 repository topics；名稱只能當提示，不能作為唯一判斷依據。
 
-- `nameWithOwner`
-- description
-- primary language
-- repository topics
+### 2. 取得 Lists 與完整 memberships
 
-名稱只能當提示，不能作為唯一判斷依據。
-
-### 3. 取得 Lists 與完整 memberships
-
-先抓 List metadata：
+先取得 List metadata：
 
 ```graphql
 query {
   viewer {
     lists(first: 100) {
-      nodes {
-        id
-        name
-        slug
-        isPrivate
-      }
+      nodes { id name slug isPrivate }
     }
   }
 }
 ```
 
-再逐一依 List ID 分頁抓取 items：
+接著**逐 List** 分頁讀取 items：
 
 ```graphql
 query($listId: ID!, $endCursor: String) {
@@ -174,137 +123,54 @@ query($listId: ID!, $endCursor: String) {
       items(first: 100, after: $endCursor) {
         totalCount
         nodes {
-          ... on Repository {
-            id
-            nameWithOwner
-          }
+          ... on Repository { id nameWithOwner }
         }
-        pageInfo {
-          hasNextPage
-          endCursor
-        }
+        pageInfo { hasNextPage endCursor }
       }
     }
   }
 }
 ```
 
-不要只查：
-
-```graphql
-lists {
-  nodes {
-    items(first: 100)
-  }
-}
-```
-
-當任一 List 超過 100 筆時，這種寫法會悄悄截斷 membership，使後續 union 遺失舊分類。
-
-建議建立兩個 lookup：
+建立兩個 lookup：
 
 ```text
 list_name -> list_id
 repository_id -> existing_list_ids[]
 ```
 
-### 4. 設計分類架構
+只讀 `items(first: 100)` 第一頁會讓超過 100 筆的 List 被截斷，後續 union 可能誤刪舊 membership。
 
-分類架構應先經使用者確認。以下是實際處理 513 個 repositories 時使用的通用類別：
+### 3. 分類並人工覆核
 
-| List | 典型線索 |
-|---|---|
-| AI Agents & Coding | agent、LLM、ChatGPT、Claude、Codex、RAG、prompt、MCP |
-| ML Models & Research | PyTorch、TensorFlow、模型、論文、computer vision、diffusion |
-| Voice, Video & Media | Whisper、TTS、audio、video、subtitle、YouTube、FFmpeg |
-| Stickers & Creative Tools | sticker、image generation、drawing、photo、design、3D |
-| LINE & Chatbots | LINE Bot、Messaging API、Telegram bot、Discord bot、chatbot |
-| Taiwan & Traditional Chinese | Taiwan、台灣、繁體中文、正體、注音、台語 |
-| Windows & Local-first | Windows、WinUI、Win32、PowerShell、desktop utility |
-| Automation & Productivity | automation、workflow、RSS、calendar、clipboard、scraper |
-| Security & Privacy | security、privacy、pentest、password、VPN、vulnerability |
-| Fonts & Typography | font、typeface、typography、字型 |
-| Translation & Language | translation、localization、dictionary、簡繁轉換 |
-| Data, Docs & Knowledge | database、SQL、PDF、OCR、knowledge、Notion、spreadsheet |
-| Utilities & System Tools | utility、converter、manager、viewer、CLI、package |
-| Web & App Development | frontend、backend、React、Vue、Django、FastAPI、extension |
-| Learning & Awesome Lists | awesome、tutorial、course、guide、roadmap、book |
-| Mobile & Cross-platform | Android、iOS、Flutter、React Native、Kotlin、Swift |
-| DevOps & Self-hosting | Docker、Kubernetes、server、hosting、CI/CD、monitoring |
-| Games & Fun | game、anime、manga、comic、entertainment |
-| Hardware & IoT | ESP32、Arduino、Raspberry Pi、firmware、sensor |
+分類架構先經使用者確認。建議以「主要用途」而不是單純技術關鍵字分類，例如：
 
-#### 分類優先序
+- AI Agents & Coding
+- ML Models & Research
+- Voice, Video & Media
+- Stickers & Creative Tools
+- LINE & Chatbots
+- Windows & Local-first
+- Automation & Productivity
+- Security & Privacy
+- Data, Docs & Knowledge
+- Web & App Development
+- DevOps & Self-hosting
+- Utilities & System Tools
 
-關鍵字可能同時命中多個類別，因此需要固定優先序。可依下列方向安排：
+同一 repository 可有多重 membership；不要因為 description 提到 AI 就一律丟進 AI 類。
 
-1. 高辨識度領域：sticker、LINE bot、font、Taiwan、hardware。
-2. 媒體能力：voice、video、Whisper、TTS。
-3. 安全、翻譯、Windows、行動平台。
-4. ML research 與 AI agents。
-5. Web、DevOps、Docs、Learning。
-6. Utilities 作為最後 fallback。
-
-不要把所有提到 AI 的 repository 都放到 AI List。例如：
-
-- AI 影片分析工具可優先放 `Voice, Video & Media`。
-- AI 圖像生成可優先放 `Stickers & Creative Tools`。
-- 模型論文實作可優先放 `ML Models & Research`。
-
-### 5. 建立 manual overrides
-
-自動分類後，將未命中或語意模糊的 repository 列出：
+對未命中或模糊項目，輸出：
 
 ```text
 owner/name | description | language | topics
 ```
 
-人工覆核順序：
+人工覆核順序：description / topics → README 首段 → 主要用途。仍無法判斷時保留未分類，不要硬塞。
 
-1. 讀 repository description 與 topics。
-2. 若仍不清楚，讀 README 首段。
-3. 判斷 repository 的主要用途，而非只看使用技術。
-4. 寫入明確的 override map。
+### 4. 產生 dry-run
 
-PowerShell 範例：
-
-```powershell
-$manualOverrides = @{
-    "owner/repository" = "AI Agents & Coding"
-    "owner/another-repository" = "Utilities & System Tools"
-}
-```
-
-如果確實無法判斷，保留在未分類報告，不要硬塞。
-
-### 6. 視需要建立 Lists
-
-建立公開 List：
-
-```graphql
-mutation {
-  createUserList(
-    input: {
-      name: "AI Agents & Coding"
-      description: "AI agents, coding assistants, LLM tooling and MCP."
-      isPrivate: false
-    }
-  ) {
-    list {
-      id
-      name
-      slug
-      isPrivate
-    }
-  }
-}
-```
-
-建立後重新查詢 Lists，使用 GitHub 回傳的 node ID，不可自行推導 ID。
-
-### 7. 產生 dry-run
-
-正式寫入前至少檢查：
+至少輸出：
 
 ```text
 starred repositories
@@ -316,18 +182,18 @@ estimated count per category
 repositories with multiple memberships
 ```
 
-以下任一條件成立時停止：
+遇到以下情況就停止：
 
-- 有預期外的 List 名稱。
-- repository 數突然下降。
+- active account 不符。
+- repository 數量突然下降。
+- 既有 memberships 無法完整分頁。
 - required List 不存在。
 - 未分類數量異常。
-- 目前 memberships 無法完整分頁。
-- GitHub account 與使用者指定帳號不符。
+- 出現預期外的刪除或 membership 減少。
 
-### 8. 計算安全的 membership union
+### 5. 計算安全 union，再分批 mutation
 
-對每一個 repository：
+PowerShell 核心邏輯：
 
 ```powershell
 $existing = @($currentMemberships[$repository.id])
@@ -335,13 +201,9 @@ $desiredListId = $listByName[$category].id
 $listIds = @($existing + $desiredListId | Sort-Object -Unique)
 ```
 
-只有 `$existing -notcontains $desiredListId` 時才需 mutation。
+只有目標 membership 尚不存在時才需要 mutation。
 
-注意 PowerShell 的空集合展開：把空的 generic collection 直接存入 Hashtable 時可能得到 `$null`。最簡單的做法是使用陣列，或使用明確型別的 `Dictionary[string, HashSet[string]]`。
-
-### 9. 分批執行 mutation
-
-單筆 mutation：
+GraphQL mutation：
 
 ```graphql
 mutation {
@@ -351,79 +213,38 @@ mutation {
       listIds: ["EXISTING_LIST_ID", "DESIRED_LIST_ID"]
     }
   ) {
-    lists {
-      id
-      name
-    }
-  }
-}
-```
-
-大量更新可用 aliases，每批約 10 筆：
-
-```graphql
-mutation {
-  m0: updateUserListsForItem(
-    input: { itemId: "R_1", listIds: ["UL_1"] }
-  ) {
-    lists { id name }
-  }
-  m1: updateUserListsForItem(
-    input: { itemId: "R_2", listIds: ["UL_2", "UL_3"] }
-  ) {
     lists { id name }
   }
 }
 ```
 
-每批都必須：
+大量更新可用 aliases 分批處理；每批都要檢查 CLI exit code 與 GraphQL `errors`。若任一批失敗，重新讀取 Lists / memberships，再產生新的 idempotent plan。
 
-- 檢查 CLI exit code。
-- 解析 GraphQL `errors`。
-- 記錄完成進度。
-- 不在 log 中輸出 token。
+### 6. 重新抓取全部資料驗證
 
-若中途失敗，不要從舊計畫硬續跑。重新取得 Lists 與 memberships，再產生新的 idempotent 更新計畫。
+完成 mutation 後，不沿用寫入前快取。重新執行 starred repositories 與所有 List memberships 的完整分頁查詢。
 
-### 10. 完整分頁重驗
-
-更新完成後重新執行步驟 2 與步驟 3，不可沿用寫入前快取。
-
-驗證條件：
+核心驗證：
 
 ```text
-unique(repository IDs in every List) == starredRepositories.totalCount
-missing repository IDs == 0
-every desired membership exists
+missing desired memberships == 0
 all original memberships still exist
+unexpected removals == 0
 ```
 
-List counts 相加可能大於 repository 數，因為同一 repository 可屬於多張 Lists；應比較唯一 repository ID 的聯集。
-
-### 11. 判斷 UI 總數差異
-
-如果：
+若你的策略要求每個 starred repository 至少進入一張 List，再另外驗證：
 
 ```text
-Stars UI total = 515
-starredRepositories total = 513
+unique(repository IDs across Lists) == starredRepositories.totalCount
 ```
 
-差額 2 通常是 starred topics。topics 不屬於 `UserListItems` 的 repository 分類範圍，應在報告中明確列為「平台限制」，不可報成漏分。
+注意：List counts 相加可能大於 repository 數，因為同一 repository 可以存在多張 Lists。
 
-### 12. 未分類篩選限制
+Stars UI 顯示總數也可能和 `starredRepositories.totalCount` 不同；不要在沒有證據時把差額直接報成 repository 遺漏。
 
-GitHub Stars 頁面目前沒有「未加入任何 List」的反向篩選。Stars 搜尋框只依 repository 或 topic 名稱搜尋；UI 另提供語言、類型與排序。
+### 7. 清理權限與暫存資料
 
-可採用的替代方式：
-
-- 每次執行本流程，以集合差集產生未分類清單。
-- 建立 `Inbox / 待分類` List，新增 star 時先放入，分類後再移除。
-- 定期排程 read-only audit；偵測新 star 後開 issue 或輸出報告，不直接自動分類。
-
-### 13. 移除臨時 scope
-
-完成遠端驗證後移除臨時 `user` scope：
+若執行過程暫時加入 `user` scope：
 
 ```powershell
 gh auth refresh -h github.com --remove-scopes user --clipboard
@@ -435,119 +256,41 @@ gh auth refresh -h github.com --remove-scopes user --clipboard
 gh auth status -h github.com
 ```
 
-輸出不應再包含 `user`。
-
-### 14. 清理與交付
-
 最後：
 
 - 刪除暫存分類腳本與 API 輸出。
-- 關閉為 OAuth 開啟的臨時終端機。
-- 不刪除使用者原本的 Lists。
+- 不刪除既有 Lists。
 - 不 unstar repositories 或 topics。
-- 回報分類結果、各 List 數量、未分類數、topics 差額及 scope 清理結果。
+- 回報 Lists 數量、更新數、未分類數、多重 memberships、驗證結果與 scope 清理狀態。
 
-## 實際案例：SanHsien
+## 常見失敗
 
-2026-07-28 實際執行結果：
+### 原本的重複分類消失
 
-| 項目 | 結果 |
-|---|---:|
-| Stars UI | 515 |
-| Starred repositories | 513 |
-| Starred topics 差額 | 2 |
-| Lists | 19 |
-| Unique repositories in Lists | 513 |
-| Missing repositories | 0 |
-| Memberships | 526 |
-| 額外 memberships | 13 |
+通常是把 `listIds` 誤當成 append，或 memberships 沒有完整分頁。重新抓遠端狀態，再以 `existing ∪ desired` 計算。
 
-List 結果：
+### 超過 100 筆後驗證失敗
 
-| List | Count |
-|---|---:|
-| AI Agents & Coding | 117 |
-| ML Models & Research | 66 |
-| Voice, Video & Media | 63 |
-| Stickers & Creative Tools | 49 |
-| LINE & Chatbots | 43 |
-| Taiwan & Traditional Chinese | 27 |
-| Windows & Local-first | 25 |
-| Automation & Productivity | 24 |
-| Security & Privacy | 21 |
-| Fonts & Typography | 16 |
-| Translation & Language | 14 |
-| Data, Docs & Knowledge | 12 |
-| Utilities & System Tools | 11 |
-| Web & App Development | 11 |
-| Learning & Awesome Lists | 8 |
-| Mobile & Cross-platform | 6 |
-| DevOps & Self-hosting | 5 |
-| Games & Fun | 5 |
-| Hardware & IoT | 3 |
+通常是 verifier 只讀第一頁。驗證器必須和寫入前 inventory 使用相同的逐 List pagination 邏輯。
 
-## 常見失敗與修正
+### PowerShell 空集合變成 `$null`
 
-### mutation 前沒有完整取得 memberships
+空 generic collection 經 pipeline / Hashtable 指派可能被展開。優先使用陣列 union，或明確型別的 `Dictionary[string, HashSet[string]]`。
 
-**症狀：** 原本的重複分類消失。
+## 文件責任
 
-**原因：** `listIds` 被誤當成追加操作，或 `items(first: 100)` 截斷。
-
-**修正：** 逐 List 分頁，送出完整 union。
-
-### 寫入成功，但驗證器報超過 100 筆
-
-**症狀：** mutation 全部完成，驗證階段因 List 大於 100 筆停止。
-
-**原因：** 驗證器只查第一頁。
-
-**修正：** 驗證器與寫入前讀取器必須共用相同的逐 List 分頁函式。
-
-### PowerShell 對空 HashSet 呼叫方法失敗
-
-**症狀：**
-
-```text
-You cannot call a method on a null-valued expression.
-```
-
-**原因：** 空 collection 經 PowerShell pipeline/Hashtable 指派時被展開。
-
-**修正：** 使用陣列 union，或以明確型別 Dictionary 保存 HashSet。
-
-### UI 顯示數量與 GraphQL 不一致
-
-**症狀：** Stars UI 多出少量項目。
-
-**原因：** UI 同時計算 starred repositories 與 starred topics。
-
-**修正：** 分別記錄，topics 不列為 repository 分類遺漏。
-
-## AI agent 最終回報範本
-
-```markdown
-GitHub Stars 分類已完成：
-
-- Stars UI：{ui_total}
-- Repositories：{repository_total}
-- Topics：{topic_delta}
-- Lists：{list_count}
-- 已分類 repositories：{classified_unique}
-- 未分類 repositories：{missing_count}
-- Memberships：{membership_total}
-- 臨時 OAuth scope：已移除／尚待使用者確認
-- 暫存檔：已清理／尚待清理
-
-注意：
-- GitHub 沒有原生「未加入任何 List」篩選。
-- List 數量總和可能因多重分類大於 repository 數。
-```
+| 文件 | 用途 |
+|---|---|
+| [`README.md`](README.md) / [`README.en.md`](README.en.md) | 可重用流程、安全邊界與核心 API 契約 |
+| [`CHECKLIST.md`](CHECKLIST.md) | 實際執行時的逐項核對表 |
+| [`AGENTS.md`](AGENTS.md) | AI agent 必須遵守的不變規則 |
+| [`CLAUDE.md`](CLAUDE.md) | Claude Code 薄入口 |
 
 ## 官方參考
 
-- [Saving repositories with stars](https://docs.github.com/en/get-started/exploring-projects-on-github/saving-repositories-with-stars)
 - [GitHub GraphQL Users reference](https://docs.github.com/en/graphql/reference/users)
+- [GitHub GraphQL public schema](https://docs.github.com/en/graphql/overview/public-schema)
+- [Saving repositories with stars](https://docs.github.com/en/get-started/exploring-projects-on-github/saving-repositories-with-stars)
 - [GitHub CLI `gh auth refresh`](https://cli.github.com/manual/gh_auth_refresh)
 
 ## License
