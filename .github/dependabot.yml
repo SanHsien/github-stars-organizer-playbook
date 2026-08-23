@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # 純文件 repo，沒有套件 manifest；唯一可由機器更新的依賴面是
+  # ci.yml 裡釘住的 actions。
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Asia/Taipei"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
