@@ -1,0 +1,52 @@
+name: CodeQL
+
+# 這個 repo 幾乎全是文件，唯一的程式是 `tools/check_links.py`——但它不是擺著看的：
+# ci.yml 每次推送都跑它，而它會走訪 repo 裡的每一份 Markdown 並讀檔。語言矩陣
+# 因此只有 Python，對得上真正有的程式碼（PLAYBOOK §1）。
+#
+# 只有一支腳本要不要掃過：要。它是**唯一**在 CI 裡執行的東西，往後 runbook 若擴出
+# 更多工具也會落在同一個矩陣裡，不需要有人再想起來補設定。
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "37 4 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Python security scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 檢出程式碼
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: 初始化 CodeQL
+        uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          languages: python
+          queries: security-extended
+
+      - name: 分析
+        uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        with:
+          category: "/language:python"
+          # Dependabot 觸發的 run 拿到唯讀 GITHUB_TOKEN，上傳 SARIF 會失敗於
+          # "Resource not accessible by integration"。掃描照跑，只跳過上傳——
+          # 推上 main 時本來就會上傳同一份結果。
+          upload: ${{ github.actor != 'dependabot[bot]' }}
