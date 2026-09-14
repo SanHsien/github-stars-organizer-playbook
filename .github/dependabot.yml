@@ -14,3 +14,11 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+    groups:
+      # init 與 analyze 必須跑完全相同的版本。拆成兩個 PR 各升一半時，
+      # CodeQL 會以「Loaded a configuration file for version X, but running
+      # version Y」失敗，兩個 PR 同時紅燈而且任一個都不能單獨合併
+      # （2026-09-13 的 #5／#6 就是這樣）。分成一組讓它們一起動。
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
