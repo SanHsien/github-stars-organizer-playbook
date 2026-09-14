@@ -3,6 +3,10 @@ updates:
   # 純文件 repo，沒有套件 manifest；唯一可由機器更新的依賴面是
   # ci.yml 裡釘住的 actions。
   # fleet-waiver: freshness -- 純文件 repo，沒有套件 manifest，沒有宣告下限可比對
+  # fleet-waiver: multi-commit -- 本 repo 於 2026-09-13 以 `release: initialize clean
+  # repository v1.0.0` 重建，在 2026-08-23 那次一次性歷史壓縮之後，沒有需要清理的舊歷史。
+  # 之後的正常提交（例如 255b57e 的 CodeQL 升版）不該逼它再壓一次——PLAYBOOK §5 明寫
+  # 壓縮是一次性清理不是不變式，這條豁免就是那一段指定的出口。
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
