@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # 純文件 repo，沒有套件 manifest；唯一可由機器更新的依賴面是
+  # ci.yml 裡釘住的 actions。
+  # fleet-waiver: freshness -- 純文件 repo，沒有套件 manifest，沒有宣告下限可比對
+  # fleet-waiver: multi-commit -- 本 repo 於 2026-09-13 以 `release: initialize clean
+  # repository v1.0.0` 重建，在 2026-08-23 那次一次性歷史壓縮之後，沒有需要清理的舊歷史。
+  # 之後的正常提交（例如 255b57e 的 CodeQL 升版）不該逼它再壓一次——PLAYBOOK §5 明寫
+  # 壓縮是一次性清理不是不變式，這條豁免就是那一段指定的出口。
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Asia/Taipei"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    groups:
+      # init 與 analyze 必須跑完全相同的版本。拆成兩個 PR 各升一半時，
+      # CodeQL 會以「Loaded a configuration file for version X, but running
+      # version Y」失敗，兩個 PR 同時紅燈而且任一個都不能單獨合併
+      # （2026-09-13 的 #5／#6 就是這樣）。分成一組讓它們一起動。
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
