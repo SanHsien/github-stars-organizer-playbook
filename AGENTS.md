@@ -35,5 +35,5 @@ AI agent 必須遵守：
 
 - README 保留可重用流程，不放使用者個人某次執行的歷史統計快照。
 - CHECKLIST 只維護執行順序，不重複 README 的完整教學。
-- CLAUDE.md 只作為 Claude Code 薄入口。
+- 不新增 CLAUDE.md；Claude Code 直接讀 AGENTS.md。
 - GitHub GraphQL schema、OAuth scope 或 Stars UI 若變更，以最新官方文件與 live introspection 為準，再同步更新 README。
