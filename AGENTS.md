@@ -28,7 +28,7 @@ AI agent 必須遵守：
 - **沒有依賴新鮮度檢查**：本 repo 沒有任何套件 manifest，`tools/check_links.py` 只用標準庫。
   唯一會過期的依賴是 workflow 裡釘的 action SHA，那已經由 Dependabot 每週看著。
 - **有 CodeQL**：現有 workflow 對 `tools/check_links.py` 執行 Python `security-extended` 掃描。
-  主人 repository 的 `main` push 會上傳 SARIF；Dependabot 觸發時因 token 唯讀仍照常掃描，
+  維護者 repository 的 `main` push 會上傳 SARIF；Dependabot 觸發時因 token 唯讀仍照常掃描，
   只跳過 SARIF 上傳，不代表略過安全分析。
 
 文件維護原則：
