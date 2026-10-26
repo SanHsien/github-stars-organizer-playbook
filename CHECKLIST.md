@@ -34,7 +34,7 @@
 
 - [ ] 重新分頁抓取 starred repositories。
 - [ ] 重新逐 List 分頁抓取 memberships。
-- [ ] Unique List repository IDs 等於 starred repository IDs。
+- [ ] 若策略要求每個 starred repository 至少進一張 List：Unique List repository IDs 等於 starred repository IDs。
 - [ ] Missing repositories 為 0，或有明確人工保留清單。
 - [ ] 原始 memberships 全部仍存在。
 - [ ] topics 差額未被誤報為遺漏。
