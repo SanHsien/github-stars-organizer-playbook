@@ -142,7 +142,7 @@ list_name -> list_id
 repository_id -> existing_list_ids[]
 ```
 
-`items` 也可能含 Gist 等非 Repository 項目（`... on Repository` 以外的節點會是空物件 `{}`），解析時略過沒有 `id` 的節點。
+`items` 也可能含 Gist 等非 Repository 項目（`... on Repository` 以外的節點會是空物件 `{}`），解析時防禦性略過沒有 `id` 的節點。
 
 只讀 `items(first: 100)` 第一頁會讓超過 100 筆的 List 被截斷，後續 union 可能誤刪舊 membership。
 

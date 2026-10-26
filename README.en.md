@@ -142,7 +142,7 @@ list_name -> list_id
 repository_id -> existing_list_ids[]
 ```
 
-`items` can also contain non-Repository entries such as Gists (nodes outside `... on Repository` come back as empty objects `{}`); skip nodes that have no `id`.
+`items` can also contain non-Repository entries such as Gists (nodes outside `... on Repository` come back as empty objects `{}`); defensively skip nodes that have no `id`.
 
 Reading only the first `items(first: 100)` page can silently truncate a large List and cause later union logic to drop old memberships.
 

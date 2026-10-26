@@ -23,16 +23,18 @@ class Playbook(unittest.TestCase):
         # GraphQL node ID 是區分大小寫的 base64；Sort-Object -Unique 預設不分大小寫，
         # 兩個只差大小寫的 ID 會被併成一個，mutation 就少送一個既有 List。
         for name in ("README.md", "README.en.md"):
-            for line in self.read(name).splitlines():
-                if "Sort-Object" in line and "-Unique" in line:
-                    self.assertIn("-CaseSensitive", line, f"{name}: {line.strip()}")
+            lines = [l for l in self.read(name).splitlines() if "Sort-Object" in l and "-Unique" in l]
+            self.assertTrue(lines, f"{name}: 找不到聯集範例")
+            for line in lines:
+                self.assertIn("-CaseSensitive", line, f"{name}: {line.strip()}")
 
     def test_checklist_unique_coverage_item_is_conditional(self):
         # README 把「每個 starred repo 都進 List」列為可選策略，且允許保留未分類；
         # 清單不可把它寫成無條件必過項目。
-        for line in self.read("CHECKLIST.md").splitlines():
-            if "Unique List repository IDs" in line:
-                self.assertRegex(line, r"若|需要")
+        lines = [l for l in self.read("CHECKLIST.md").splitlines() if "Unique List repository IDs" in l]
+        self.assertTrue(lines)
+        for line in lines:
+            self.assertRegex(line, r"若|需要")
 
     def test_lists_query_is_paginated_like_every_other_connection(self):
         for name in ("README.md", "README.en.md"):

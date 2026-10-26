@@ -56,6 +56,15 @@ class CheckDocument(unittest.TestCase):
         # Windows／macOS 上 Other.md 會解析到 other.md，GitHub（Linux）上不會。
         self.assertEqual(len(self.check("[a](Other.md)")), 1)
 
+    def test_footnote_definition_is_not_a_link(self):
+        self.assertEqual(self.check("文字[^1]\n\n[^1]: 這是註腳 not a path\n"), [])
+
+    def test_fence_with_info_string_does_not_close_open_fence(self):
+        text = "```text\n```python\n[a](nope.md)\n```\n[b](nope2.md)"
+        problems = self.check(text)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("nope2.md", problems[0])
+
     def test_anchor_only_and_external_skipped(self):
         self.assertEqual(self.check("[a](#x) [b](https://example.com/x.md)"), [])
 

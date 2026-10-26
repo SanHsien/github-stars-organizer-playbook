@@ -24,7 +24,7 @@ LINK_PATTERN = re.compile(
     r"\[[^\]]*\]\(\s*(<[^>\n]*>|[^)\s]*)"
     r"(?:\s+(?:\"[^\"]*\"|'[^']*'|\([^)]*\)))?\s*\)"
 )
-REFERENCE_PATTERN = re.compile(r"^ {0,3}\[[^\]]+\]:\s*(<[^>\n]*>|\S+)", re.MULTILINE)
+REFERENCE_PATTERN = re.compile(r"^ {0,3}\[(?!\^)[^\]]+\]:\s*(<[^>\n]*>|\S+)", re.MULTILINE)
 FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
 INLINE_CODE_PATTERN = re.compile(r"(`+)(?:(?!\1).)+?\1")
 SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#")
@@ -41,7 +41,12 @@ def strip_code(text: str) -> str:
                 fence = match.group(1)
                 continue
             kept.append(INLINE_CODE_PATTERN.sub("", line))
-        elif match and match.group(1)[0] == fence[0] and len(match.group(1)) >= len(fence):
+        elif (
+            match
+            and match.group(1)[0] == fence[0]
+            and len(match.group(1)) >= len(fence)
+            and not line.strip()[len(match.group(1)):].strip()  # 收尾圍欄不可帶 info string
+        ):
             fence = None
     return "\n".join(kept)
 
