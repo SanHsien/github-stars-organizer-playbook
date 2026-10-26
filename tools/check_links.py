@@ -19,23 +19,71 @@ from pathlib import Path
 from urllib.parse import unquote
 
 ROOT = Path(__file__).resolve().parent.parent
-LINK_PATTERN = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+# 目標可以是 <含空白的路徑>，也可以是不含空白的路徑；其後可跟 "標題"／'標題'／(標題)。
+LINK_PATTERN = re.compile(
+    r"\[[^\]]*\]\(\s*(<[^>\n]*>|[^)\s]*)"
+    r"(?:\s+(?:\"[^\"]*\"|'[^']*'|\([^)]*\)))?\s*\)"
+)
+REFERENCE_PATTERN = re.compile(r"^ {0,3}\[[^\]]+\]:\s*(<[^>\n]*>|\S+)", re.MULTILINE)
+FENCE_PATTERN = re.compile(r"^ {0,3}(`{3,}|~{3,})")
+INLINE_CODE_PATTERN = re.compile(r"(`+)(?:(?!\1).)+?\1")
 SKIP_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#")
 
 
-def check_document(path: Path) -> list[str]:
+def strip_code(text: str) -> str:
+    """去掉 fenced code 與 inline code：裡面的 [x](y) 是範例，不是連結。"""
+    kept: list[str] = []
+    fence: str | None = None
+    for line in text.splitlines():
+        match = FENCE_PATTERN.match(line)
+        if fence is None:
+            if match:
+                fence = match.group(1)
+                continue
+            kept.append(INLINE_CODE_PATTERN.sub("", line))
+        elif match and match.group(1)[0] == fence[0] and len(match.group(1)) >= len(fence):
+            fence = None
+    return "\n".join(kept)
+
+
+def exists_exact(base: Path, relative: str) -> bool:
+    """存在，且每一段的大小寫都和磁碟上一致。
+
+    Windows／macOS 的檔案系統不分大小寫，`[x](readme.md)` 在本機通過，
+    推上 GitHub（Linux）就斷掉；只有逐段比對實際目錄清單才抓得到。
+    """
+    current = base.resolve()
+    for part in Path(relative).parts:
+        if part in ("", "."):
+            continue
+        if part == "..":
+            current = current.parent
+            continue
+        if not current.is_dir() or part not in {entry.name for entry in current.iterdir()}:
+            return False
+        current = current / part
+    return True
+
+
+def check_document(path: Path, root: Path = ROOT) -> list[str]:
     problems: list[str] = []
-    for match in LINK_PATTERN.finditer(path.read_text(encoding="utf-8")):
-        target = match.group(1).strip()
+    text = strip_code(path.read_text(encoding="utf-8"))
+    targets = [m.group(1) for m in LINK_PATTERN.finditer(text)]
+    targets += [m.group(1) for m in REFERENCE_PATTERN.finditer(text)]
+    for target in targets:
+        target = target.strip()
+        if target.startswith("<") and target.endswith(">"):
+            target = target[1:-1].strip()
         if not target or target.startswith(SKIP_PREFIXES):
             continue
         # 去掉錨點：連到 other.md#section 時只驗檔案存在。
         file_part = unquote(target.split("#", 1)[0])
         if not file_part:
             continue
-        resolved = (path.parent / file_part).resolve()
-        if not resolved.exists():
-            problems.append(f"{target} → 找不到 {resolved.relative_to(ROOT) if ROOT in resolved.parents else resolved}")
+        if not exists_exact(path.parent, file_part):
+            resolved = (path.parent / file_part).resolve()
+            shown = resolved.relative_to(root) if root in resolved.parents else resolved
+            problems.append(f"{target} → 找不到 {shown}")
     return problems
 
 

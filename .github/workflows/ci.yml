@@ -37,5 +37,8 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: 單元測試
+        run: python -m unittest discover -s tests -v
+
       - name: 檢查文件間的相對連結
         run: python tools/check_links.py
