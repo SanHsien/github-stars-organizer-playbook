@@ -107,10 +107,13 @@ query {
   viewer {
     lists(first: 100) {
       nodes { id name slug isPrivate }
+      pageInfo { hasNextPage endCursor }
     }
   }
 }
 ```
+
+`lists` 也是 connection：`hasNextPage` 為 true 就要繼續讀，不要假設 100 張以內。
 
 接著**逐 List** 分頁讀取 items：
 
@@ -138,6 +141,8 @@ query($listId: ID!, $endCursor: String) {
 list_name -> list_id
 repository_id -> existing_list_ids[]
 ```
+
+`items` 也可能含 Gist 等非 Repository 項目（`... on Repository` 以外的節點會是空物件 `{}`），解析時防禦性略過沒有 `id` 的節點。
 
 只讀 `items(first: 100)` 第一頁會讓超過 100 筆的 List 被截斷，後續 union 可能誤刪舊 membership。
 
@@ -198,10 +203,10 @@ PowerShell 核心邏輯：
 ```powershell
 $existing = @($currentMemberships[$repository.id])
 $desiredListId = $listByName[$category].id
-$listIds = @($existing + $desiredListId | Sort-Object -Unique)
+$listIds = @($existing + $desiredListId | Sort-Object -Unique -CaseSensitive)
 ```
 
-只有目標 membership 尚不存在時才需要 mutation。
+只有目標 membership 尚不存在時才需要 mutation。List ID 是區分大小寫的 base64；`Sort-Object -Unique` 預設不分大小寫，會把只差大小寫的兩個 ID 併成一個，所以必須加 `-CaseSensitive`。
 
 GraphQL mutation：
 

@@ -107,10 +107,13 @@ query {
   viewer {
     lists(first: 100) {
       nodes { id name slug isPrivate }
+      pageInfo { hasNextPage endCursor }
     }
   }
 }
 ```
+
+`lists` is a connection too: keep reading while `hasNextPage` is true instead of assuming 100 is enough.
 
 Then paginate **each List** by ID:
 
@@ -138,6 +141,8 @@ Build two lookups:
 list_name -> list_id
 repository_id -> existing_list_ids[]
 ```
+
+`items` can also contain non-Repository entries such as Gists (nodes outside `... on Repository` come back as empty objects `{}`); defensively skip nodes that have no `id`.
 
 Reading only the first `items(first: 100)` page can silently truncate a large List and cause later union logic to drop old memberships.
 
@@ -198,10 +203,10 @@ Core PowerShell logic:
 ```powershell
 $existing = @($currentMemberships[$repository.id])
 $desiredListId = $listByName[$category].id
-$listIds = @($existing + $desiredListId | Sort-Object -Unique)
+$listIds = @($existing + $desiredListId | Sort-Object -Unique -CaseSensitive)
 ```
 
-Only mutate when the desired membership is missing.
+Only mutate when the desired membership is missing. List IDs are case-sensitive base64; `Sort-Object -Unique` is case-insensitive by default and would merge two IDs that differ only in case, so `-CaseSensitive` is required.
 
 GraphQL mutation:
 
