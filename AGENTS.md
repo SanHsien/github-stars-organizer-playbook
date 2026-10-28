@@ -37,3 +37,7 @@ AI agent 必須遵守：
 - CHECKLIST 只維護執行順序，不重複 README 的完整教學。
 - 不新增 CLAUDE.md；Claude Code 直接讀 AGENTS.md。
 - GitHub GraphQL schema、OAuth scope 或 Stars UI 若變更，以最新官方文件與 live introspection 為準，再同步更新 README。
+
+## 路線圖
+
+- `ROADMAP.md` 是本 repo 後續工作的單一真相源。完成或新增工作時，在同一個 commit 更新它：做完的列刪掉、新工作加進去。不要在其他文件另列待辦。
